@@ -1,0 +1,38 @@
+{
+  "name": "express-redis-rate-limit",
+  "version": "1.0.0",
+  "description": "Rate limit middleware for express using redis in-memory store.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --require spec/support.js spec/**.spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefanrush/express-redis-rate-limit.git"
+  },
+  "keywords": [
+    "express",
+    "redis",
+    "ratelimit",
+    "api"
+  ],
+  "author": "Stefan Rush <stefanrush@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/stefanrush/express-redis-rate-limit/issues"
+  },
+  "homepage": "https://github.com/stefanrush/express-redis-rate-limit#readme",
+  "dependencies": {
+    "async": "^1.5.0",
+    "debug": "^2.2.0",
+    "lodash": "^3.10.1",
+    "pluralize": "^1.2.1"
+  },
+  "devDependencies": {
+    "chai": "^3.4.1",
+    "express": "^4.13.3",
+    "mocha": "^2.3.4",
+    "redis": "^2.3.1",
+    "supertest": "^1.1.0"
+  }
+}
