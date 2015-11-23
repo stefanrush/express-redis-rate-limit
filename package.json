@@ -1,6 +1,6 @@
 {
   "name": "express-redis-rate-limit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Rate limit middleware for express using redis in-memory store.",
   "main": "index.js",
   "scripts": {
