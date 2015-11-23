@@ -1,5 +1,9 @@
 # ExpressRedisRateLimit
 
+[![Build Status][travis-image]][travis-url]
+[![NPM Version][npm-image]][npm-url]
+[![License][license-image]][license-url]
+
 Rate limit middleware for express using redis in-memory store.
 
 
@@ -37,6 +41,12 @@ The number of requests allowed within time window.
 type=`Number` default=`60`
 
 The time frame for request limit in seconds.
+
+**enforceRequestSpreading**
+
+type=`Boolean` default=`false`
+
+When true ensures requests are spread evenly throughout time window. This will modify request limit and time window options to per request values (ie. `requestLimit=60` and `timeWindow=120` will become `requestLimit=1` and `timeWindow=2`).
 
 **idMatcher**
 
@@ -109,6 +119,14 @@ An object returned in the event of an error.
 **X-RateLimit-Reset** - The length of time remaining within time window in milliseconds.
 
 
-## Run Tests
+## Testing
 
     npm test
+
+
+[npm-image]: https://img.shields.io/npm/v/express-redis-rate-limit.svg?style=flat-square
+[npm-url]: https://npmjs.org/package/express-redis-rate-limit
+[travis-image]: https://img.shields.io/travis/stefanrush/express-redis-rate-limit/master.svg?style=flat-square
+[travis-url]: https://travis-ci.org/stefanrush/express-redis-rate-limit
+[license-image]: https://img.shields.io/github/license/stefanrush/express-redis-rate-limit.svg?style=flat-square
+[license-url]: https://github.com/stefanrush/express-redis-rate-limit/blob/master/LICENSE

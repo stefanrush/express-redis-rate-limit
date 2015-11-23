@@ -28,6 +28,10 @@ module.exports = ExpressRedisRateLimit;
  * @param {Integer} [options.requestLimit=60] - The number of requests allowed within time
  *        window.
  * @param {Number} [options.timeWindow=60] - The time frame for request limit in seconds.
+ * @param {Boolean} [options.enforceRequestSpreading=false] - When true ensures requests
+ *        are spread evenly throughout time window. This will modify request limit and
+ *        time window options to per request values (ie. requestLimit=60 and
+ *        timeWindow=120 will become requestLimit=1 and timeWindow=2).
  * @param {Regexp|Boolean} [options.idMatcher=/[a-z0-9]{24}$/] - A regular expression to
  *        match IDs within request. Set to false to stop behavior. Defaults to a MongoDB
  *        document ID matcher.
@@ -46,6 +50,7 @@ function ExpressRedisRateLimit(cache, options) {
 	var defaultOptions = {
 		requestLimit: 60,
 		timeWindow: 60,
+		enforceRequestSpreading: false,
 		idMatcher: /[a-z0-9]{24}$/,
 		idValue: ':id',
 		createKey: function(req) {
@@ -72,6 +77,10 @@ function ExpressRedisRateLimit(cache, options) {
 	 * Override default options with valid user options.
 	 */
 	options = defaults(validateOptions(options), defaultOptions);
+
+	if (options.enforceRequestSpreading) {
+		options = spreadRequests(options);
+	}
 
 	return rateLimit;
 
@@ -148,7 +157,7 @@ function ExpressRedisRateLimit(cache, options) {
 					next(null, count, parseInt(reply, 10));
 				});
 			} else {
-				next(null, count, options.timeWindow * 1000);
+				next(null, count, timeWindowMs(options));
 			}
 		}
 
@@ -241,7 +250,7 @@ function ExpressRedisRateLimit(cache, options) {
 			res.set({
 				'X-RateLimit-Limit': options.requestLimit,
 				'X-RateLimit-Remaining': requestsRemaining(count),
-				'X-RateLimit-Window': options.timeWindow * 1000,
+				'X-RateLimit-Window': timeWindowMs(options),
 				'X-RateLimit-Reset': ttl
 			});
 		}
@@ -286,13 +295,19 @@ function ExpressRedisRateLimit(cache, options) {
 		}
 
 		if (options.requestLimit && !(typeof options.requestLimit === 'number' &&
+		                              options.requestLimit % 1 === 0 &&
 		                              options.requestLimit > 0)) {
-			throw new Error("Request limit option must be a positive number.");
+			throw new Error("Request limit option must be a positive integer.");
 		}
 
 		if (options.timeWindow && !(typeof options.timeWindow === 'number' &&
 		                            options.timeWindow > 0)) {
 			throw new Error("Time window option must be a positive number.");
+		}
+
+		if (options.enforceRequestSpreading &&
+		    typeof options.enforceRequestSpreading !== 'boolean') {
+			throw new Error("Enforce request spreading option must be a boolean.");
 		}
 
 		if (options.idMatcher && typeof options.idMatcher !== 'object') {
@@ -318,6 +333,29 @@ function ExpressRedisRateLimit(cache, options) {
 		}
 
 		return options;
+	}
+
+	/**
+	 * Enforces request spreading by changing request limit and time window options to
+	 * per request values.
+	 * @param {Object} options - The configuration options.
+	 * @returns {Object} Configuration options with request spreading enforced.
+	 * @memberof ExpressRedisRateLimit
+	 */
+	function spreadRequests(options) {
+		options.timeWindow = options.timeWindow / options.requestLimit;
+		options.requestLimit = 1;
+		return options;
+	}
+
+	/**
+	 * Returns time window option as a millisecond integer.
+	 * @param {Object} options - The configuration options.
+	 * @returns {Integer} The time window option converted to milliseconds.
+	 * @memberof ExpressRedisRateLimit
+	 */
+	function timeWindowMs(options) {
+		return Math.round(options.timeWindow * 1000);
 	}
 
 	/**

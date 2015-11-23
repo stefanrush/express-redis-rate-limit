@@ -4,14 +4,15 @@ var async = require('async'),
     helpers = require('./helpers');
 
 var OK = 200,
-    RL = 429;
+    RL = 429,
+    CN = 9;
 
 describe('ExpressRedisRateLimit', function() {
 	it("survives stress test", function(done) {
 		this.timeout(5000);
 
 		var options = { requestLimit: 150 },
-		    cache = mockCache(1),
+		    cache = mockCache(CN),
 		    app = mockApp(cache, options),
 		    requestCount = 0,
 		    totalRequests = 300,
@@ -29,7 +30,7 @@ describe('ExpressRedisRateLimit', function() {
 			}, requestInterval);
 		}, function(error) {
 			if (error) throw error;
-			cache.quit(done);
+			helpers.flushCache(cache, done);
 		});
 	});
 
@@ -40,7 +41,7 @@ describe('ExpressRedisRateLimit', function() {
 
 				async.eachSeries(requestLimitTests, function(test, next) {
 					var options = { requestLimit: test },
-					    cache = mockCache(1),
+					    cache = mockCache(CN),
 					    app = mockApp(cache, options),
 					    requestCount = 0,
 					    requestInterval = 10,
@@ -57,7 +58,37 @@ describe('ExpressRedisRateLimit', function() {
 						}, requestInterval);
 					}, function(error) {
 						if (error) throw error;
-						cache.quit(next);
+						helpers.flushCache(cache, next);
+					});
+				}, done);
+			});
+		});
+
+		describe('.enforceRequestSpreading', function() {
+			it("ensures requests are spread evenly throughout time window", function(done) {
+				var enforceRequestSpreadingTests = [false, true];
+
+				async.eachSeries(enforceRequestSpreadingTests, function(test, next) {
+					var options = { requestLimit: 10, enforceRequestSpreading: test },
+					    cache = mockCache(CN),
+					    app = mockApp(cache, options),
+					    requestCount = 0,
+					    totalRequests = 9,
+					    requestInterval = 10,
+					    statusCode;
+
+					async.whilst(function() {
+						return requestCount <= totalRequests;
+					}, function(nextRequest) {
+						setTimeout(function() {
+							statusCode = (++requestCount > 1 && test) ? RL : OK;
+							request(app)
+								.get('/items')
+								.expect(statusCode, nextRequest);
+						}, requestInterval);
+					}, function(error) {
+						if (error) throw error;
+						helpers.flushCache(cache, next);
 					});
 				}, done);
 			});
@@ -73,7 +104,7 @@ describe('ExpressRedisRateLimit', function() {
 
 				async.eachSeries(idMatcherTests, function(test, next) {
 					var options = { requestLimit: 10, idMatcher: test.matcher },
-					    cache = mockCache(1),
+					    cache = mockCache(CN),
 					    app = mockApp(cache, options),
 					    requestCount = 0,
 					    totalRequests = 15,
@@ -99,7 +130,7 @@ describe('ExpressRedisRateLimit', function() {
 							.expect(statusCode, nextRequest);
 					}, function(error) {
 						if (error) throw error;
-						cache.quit(next);
+						helpers.flushCache(cache, next);
 					});
 				}, done);
 			});
@@ -114,7 +145,7 @@ describe('ExpressRedisRateLimit', function() {
 
 				async.eachSeries(rateLimitMessageTests, function(test, next) {
 					var options = { requestLimit: 10, rateLimitMessage: test },
-					    cache = mockCache(1),
+					    cache = mockCache(CN),
 					    app = mockApp(cache, options),
 					    requestCount = 0,
 					    totalRequests = 15,
@@ -143,7 +174,7 @@ describe('ExpressRedisRateLimit', function() {
 						}, requestInterval);
 					}, function(error) {
 						if (error) throw error;
-						cache.quit(next);
+						helpers.flushCache(cache, next);
 					});
 				}, done);
 			});
@@ -154,14 +185,14 @@ describe('ExpressRedisRateLimit', function() {
 		describe('X-RateLimit-Limit', function() {
 			it("equals the maximum number of requests allowed", function(done) {
 				var options = { requestLimit: 10 },
-				    cache = mockCache(1),
+				    cache = mockCache(CN),
 				    app = mockApp(cache, options);
 
 				request(app)
 					.get('/items')
 					.expect('X-RateLimit-Limit', options.requestLimit)
 					.end(function() {
-						cache.quit(done);
+						helpers.flushCache(cache, done);
 					});
 			});
 		});
@@ -169,7 +200,7 @@ describe('ExpressRedisRateLimit', function() {
 		describe('X-RateLimit-Remaining', function() {
 			it("equals the remaining number of requests allowed", function(done) {
 				var options = { requestLimit: 10 },
-				    cache = mockCache(1),
+				    cache = mockCache(CN),
 				    app = mockApp(cache, options),
 				    requestCount = 0,
 				    totalRequests = 15,
@@ -186,7 +217,7 @@ describe('ExpressRedisRateLimit', function() {
 						.end(next);
 				}, function(error) {
 					if (error) throw error;
-					cache.quit(done);
+					helpers.flushCache(cache, done);
 				});
 			});
 		});
@@ -194,14 +225,14 @@ describe('ExpressRedisRateLimit', function() {
 		describe('X-RateLimit-Window', function() {
 			it("equals the total length of the time window", function(done) {
 				var options = { timeWindow: 10 },
-				    cache = mockCache(1),
+				    cache = mockCache(CN),
 				    app = mockApp(cache, options);
 
 				request(app)
 					.get('/items')
 					.expect('X-RateLimit-Window', options.timeWindow)
 					.end(function() {
-						cache.quit(done);
+						helpers.flushCache(cache, done);
 					});
 			});
 		});
@@ -209,7 +240,7 @@ describe('ExpressRedisRateLimit', function() {
 		describe('X-RateLimit-Reset', function() {
 			it("equals the time remaining within time window", function(done) {
 				var options = { timeWindow: 10 },
-				    cache = mockCache(1),
+				    cache = mockCache(CN),
 				    app = mockApp(cache, options),
 				    requestCount = 0,
 				    totalRequests = 15,
@@ -236,16 +267,9 @@ describe('ExpressRedisRateLimit', function() {
 						}, requestInterval);
 				}, function(error) {
 					if (error) throw error;
-					cache.quit(done);
+					helpers.flushCache(cache, done);
 				});
 			});
-		});
-	});
-
-	after(function(done) {
-		var cache = mockCache(1);
-		cache.flushdb(function() {
-			cache.quit(done);
 		});
 	});
 });

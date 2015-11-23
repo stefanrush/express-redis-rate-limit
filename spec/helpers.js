@@ -7,5 +7,10 @@ module.exports = {
 			output += char >= 10 ? String.fromCharCode(char + 55) : '' + char; 
 		}
 		return output;
+	},
+	flushCache: function(cache, callback) {
+		cache.flushdb(function() {
+			cache.quit(callback);
+		});
 	}
 };
